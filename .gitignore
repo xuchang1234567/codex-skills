@@ -27,3 +27,17 @@ __pycache__/
 venv/
 dist/
 build/
+
+# Local model environments, caches, and downloaded media
+.cache/
+qwen3-asr-venv/
+**/qwen3-asr-venv/
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.m4s
+*.mp3
+*.wav
+*.mp4

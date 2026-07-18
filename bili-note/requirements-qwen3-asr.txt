@@ -1,0 +1,9 @@
+# Reproducible package set for the optional local Qwen3-ASR fallback.
+# Install into a dedicated virtual environment, never into system Python.
+qwen-asr==0.0.6
+accelerate==1.12.0
+qwen-omni-utils==0.0.9
+pandas==3.0.3
+torchvision==0.24.0
+# Install CUDA-enabled torch separately from the official PyTorch index:
+# python -m pip install --index-url https://download.pytorch.org/whl/cu128 torch==2.9.0 torchvision==0.24.0
