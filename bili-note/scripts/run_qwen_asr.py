@@ -59,8 +59,11 @@ def normalize_language(value: str) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run Qwen3-ASR on one audio file.")
-    parser.add_argument("--audio", required=True, type=Path)
-    parser.add_argument("--out", required=True, type=Path)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--audio", type=Path)
+    source.add_argument("--manifest", type=Path, help="Batch audio manifest written by extract_bilibili.py.")
+    parser.add_argument("--out", type=Path)
+    parser.add_argument("--out-dir", type=Path, help="Output directory for manifest batch mode.")
     parser.add_argument("--model", default="Qwen/Qwen3-ASR-0.6B")
     parser.add_argument("--language", default="Chinese")
     parser.add_argument("--device-map", default="auto")
@@ -93,14 +96,47 @@ def main(argv: list[str] | None = None) -> int:
         max_new_tokens=args.max_new_tokens,
         max_inference_batch_size=1,
     )
-    segments = transcribe_with_optional_chunks(model, args.audio, language, args.chunk_seconds, sf, torch)
+    if args.manifest:
+        if not args.out_dir:
+            parser.error("--out-dir is required with --manifest")
+        items = json.loads(args.manifest.read_text(encoding="utf-8"))
+        args.out_dir.mkdir(parents=True, exist_ok=True)
+        completed = 0
+        skipped = 0
+        for item in items:
+            wav = Path(item["wav"])
+            stem = wav.stem
+            json_path = args.out_dir / f"{stem}.json"
+            txt_path = args.out_dir / f"{stem}.txt"
+            if json_path.exists() and txt_path.exists():
+                skipped += 1
+                print(json.dumps({"status": "skipped", "page": item.get("page"), "out": str(json_path)}, ensure_ascii=False), flush=True)
+                continue
+            payload = transcribe_payload(model, wav, language, device_map, dtype, args, sf, torch)
+            json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            txt_path.write_text(payload["text"], encoding="utf-8")
+            completed += 1
+            print(json.dumps({"status": "completed", "page": item.get("page"), "out": str(json_path), "chars": len(payload["text"])}, ensure_ascii=False), flush=True)
+        print(json.dumps({"completed": completed, "skipped": skipped, "total": len(items)}, ensure_ascii=False))
+    else:
+        if not args.out:
+            parser.error("--out is required with --audio")
+        payload = transcribe_payload(model, args.audio, language, device_map, dtype, args, sf, torch)
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(json.dumps({"out": str(args.out), "chars": len(payload["text"])}, ensure_ascii=False))
+    return 0
+
+
+def transcribe_payload(model: Any, audio: Path, language: str, device_map: str, dtype: Any, args: Any, sf: Any, torch: Any) -> dict[str, Any]:
+    segments = transcribe_with_optional_chunks(model, audio, language, args.chunk_seconds, sf, torch)
     text = "\n".join(segment["text"] for segment in segments if segment.get("text")).strip()
     output_language = segments[0].get("language", language) if segments else language
-    payload = {
+    return {
         "model": args.model,
         "backend": "qwen3-asr",
         "language": output_language,
-        "audio": str(args.audio),
+        "audio": str(audio),
         "device_map": device_map,
         "dtype": str(dtype).replace("torch.", ""),
         "max_new_tokens": args.max_new_tokens,
@@ -108,10 +144,6 @@ def main(argv: list[str] | None = None) -> int:
         "segments": segments,
         "text": text,
     }
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"out": str(args.out), "chars": len(text)}, ensure_ascii=False))
-    return 0
 
 
 def transcribe_one(model: Any, audio: Path, language: str) -> dict[str, Any]:

@@ -61,3 +61,11 @@ Do not start a multi-hour transcription until both checks pass:
 
 For CPU fallback, use `dtype=float32` and `device_map=cpu`, but first verify
 that the complete Qwen model is present in the local Hugging Face cache.
+
+## Batch transcription
+
+For a multi-part video, `run_qwen_asr.py` can load the model once and process
+an `audio_manifest.json` incrementally. Existing `.json` and `.txt` outputs are
+skipped, so the command can be safely resumed after interruption:
+
+    & "$venv\Scripts\python.exe" scripts\run_qwen_asr.py --manifest path\audio_manifest.json --out-dir path --language Chinese --device-map cpu --dtype float32 --chunk-seconds 60
