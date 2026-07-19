@@ -157,6 +157,7 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=6)
     parser.add_argument("--sleep-ms", type=int, default=150)
     parser.add_argument("--limit", type=int, default=0, help="Optional max parts to fetch, 0 means all")
+    parser.add_argument("--start", type=int, default=1, help="1-based part to start fetching from")
     args = parser.parse_args()
 
     out_root = Path(args.out)
@@ -164,12 +165,13 @@ def main() -> int:
     subtitle_dir.mkdir(parents=True, exist_ok=True)
 
     count = page_count(args.cdp_base, args.target)
+    start_index = max(0, args.start - 1)
     if args.limit > 0:
         count = min(count, args.limit)
 
     all_results = []
     meta = {}
-    for start in range(0, count, args.batch_size):
+    for start in range(start_index, count, args.batch_size):
         end = min(start + args.batch_size, count)
         batch = fetch_url_batch(args.cdp_base, args.target, start, end, args.sleep_ms)
         meta = {k: batch.get(k) for k in ("aid", "bvid", "referer")}

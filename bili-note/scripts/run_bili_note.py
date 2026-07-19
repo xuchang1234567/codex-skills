@@ -23,6 +23,7 @@ EXTRACT_SCRIPT = SCRIPT_DIR / "extract_bilibili.py"
 EXTRACT_OPUS_SCRIPT = SCRIPT_DIR / "extract_bilibili_opus.py"
 BROWSER_AI_SCRIPT = SCRIPT_DIR / "fetch_browser_ai_subtitles.py"
 ARCHIVE_SCRIPT = SCRIPT_DIR / "archive_bili_materials.py"
+DEFAULT_KNOWLEDGE_ROOT = Path(r"C:\Users\dxc\Desktop\知识库\B站笔记")
 
 
 def configure_stdout() -> None:
@@ -207,7 +208,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Run Bili Note extraction, archive, and evidence indexing")
     parser.add_argument("source", help="Bilibili video/opus URL, BVID, or opus id")
     parser.add_argument("--work-dir", help="Temporary extraction directory")
-    parser.add_argument("--archive-dir", help="Permanent archive directory")
+    parser.add_argument("--archive-dir", help="Permanent archive directory (default: bound knowledge base raw-materials folder)")
     parser.add_argument("--parts", default="all", help="'all', 'key', or comma-separated page numbers")
     parser.add_argument("--comments", action="store_true", help="Fetch comments")
     parser.add_argument(
@@ -225,7 +226,11 @@ def main() -> int:
 
     source_id = find_source_id(args.source)
     work_dir = Path(args.work_dir) if args.work_dir else Path.cwd() / f"tmp_bili_note_{safe_slug(source_id)}"
-    archive_dir = Path(args.archive_dir) if args.archive_dir else None
+    archive_dir = (
+        Path(args.archive_dir)
+        if args.archive_dir
+        else DEFAULT_KNOWLEDGE_ROOT / "原始材料" / safe_slug(source_id)
+    )
     work_dir.mkdir(parents=True, exist_ok=True)
     steps: list[dict[str, Any]] = []
     kind = source_kind(args.source)
