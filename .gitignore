@@ -8,6 +8,7 @@
 *.pfx
 *.crt
 *.cer
+*.keystore
 
 # Logs, temporary files, and editor metadata
 *.log
